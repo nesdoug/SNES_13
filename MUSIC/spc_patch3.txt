@@ -1,0 +1,167 @@
+multiple patches in the SPC code
+to add echo functions
+
+
+-cut jsr to updateBRR 
+$39 = 00 00 00
+-move original patch jsr from 323 to 3ca
+$31 = 3f ca 03
+
+-change the table of addresses for commands
+@ 701,703,705 ROM, change pointers to...
+320
+347
+37a
+change the patch jsr to 3 bytes fewer near 224.
+
+
+
+;echo volume and on/off
+echo_vol:  122=320
+
+	ldx #$4d ;on/off	cd 4d
+	stx {addr}			d8 f2
+	lda cpu3 ;ON/OFF BITF	e4 f7
+	sta {data}			c4 f3
+
+	lda cpu2 ;volume	e4 f6
+	ldx #$2c ;EVOL L	cd 2c
+	stx {addr}			d8 f2
+	sta {data}			c4 f3
+	ldx #$3c ;EVOL R	cd 3c
+	stx {addr}			d8 f2
+	sta {data}			c4 f3
+
+	ldx #$6c ;FLG		cd 6c
+	stx {addr}			d8 f2
+
+	tax ;set flags		5d
+	beq echo_off		f0 05
+
+	clr5 {data} ;allow echo	b2 f3
+	jmp cmdStereo+4		5f 52 02
+
+
+echo_off:
+
+	set5 {data}			a2 f3
+	jmp cmdStereo+4		5f 52 02
+
+
+
+
+;echo address and delay
+;assume vol is off already
+echo_addr: 149=347
+	lda #$6d ;ECHO START ADDR	e8 6d
+	sta {addr}				c4 f2
+	lda CPU2				e4 f6
+	sta {data}				c4 f3
+	sta D_PTR_H				c4 0d
+	lda #$7d ;ECHO DELAY	e8 7d
+	sta {addr}				c4 f2
+	lda CPU3				e4 f7
+;sanitize with 
+	and #$0f				28 0f
+	sta {data}				c4 f3
+	asl a ;2				1c
+	asl a ;4				1c
+	asl a ;8				1c
+	tax ;high byte count	5d
+	lda #0					e8 00
+	sta D_PTR_L				c4 0c
+	tay ;low byte count		fd
+
+;clear the echo buffer
+loop:
+	sta ({D_PTR_L}),y		d7 0c
+	iny						fc		
+	bne loop				d0 fb
+	inc D_PTR_H				ab 0d
+	dex						1d
+	bne loop				d0 f6 %
+
+;wait a little
+;both x and y are 0
+
+loop2:
+	nop						00
+	dex 					1d
+	bne loop2				d0 fc
+	dey bne loop2			fe fa
+	jmp cmdStereo+4			5f 52 02
+
+	nop 00 ; 3 bytes blank
+	nop 00
+	nop 00
+	
+	
+	
+	
+;echo fir and feedback vol
+echo_fir: 17c=37a
+	lda #$0d ;feedback		e8 0d
+	sta {addr}				c4 f2
+	lda cpu3				e4 f7
+	sta {data}				c4 f3
+	lda #FIR_TABLE_L		e8 aa
+	sta PTR_L 0c			c4 0c
+	lda #FIR_TABLE_H		e8 03
+	sta PTR_H 0d			c4 0d
+	lda cpu2 ;fir setting	e4 f6
+	asl a					1c
+	asl a					1c
+	asl a ;x8				1c
+	tay						fd
+	ldx #7					cd 07
+
+loop:
+	lda FIR_ADDR, x			f5 a2 03
+	sta {addr}				c4 f2
+	lda (PTR), y			f7 0c
+	sta {data}				c4 f3
+	iny						fc
+	dex						1d
+	bpl loop				10 f3
+	jmp cmdStereo+4			5f 52 02
+
+
+FIR_ADDR: 1a4=3a2
+$7f, $6f, $5f, $4f, $3f, $2f, $1f, $0f
+
+FIR_TABLE: 1ac=3aa
+;simple echo
+7f 00 00 00  00 00 00 00
+;multi echo
+48 20 12 0c  00 00 00 00
+;low pass echo
+0c 21 2b 2b  13 fe f3 f9
+;high pass echo
+01 02 04 08  10 20 40 80
+
+previous patch: 1cc=3ca
+fd 28 0f 1c 5d dd 9f 28 0f 6f
+
+	tay	fd
+	and #0f   28 0f
+	asl	1c
+	tax 5d
+	tya dd
+	xcn 9f
+	and #$0f  28 0f
+	rts	6f
+
+
+
+
+we are just above streamStop, we have a few bytes free.
+streamStop, 3d8=1da = e8 00 c4 20 e8... don't touch it.
+
+
+
+
+
+
+Further Notes
+exe patch d1a0c-d20d6
+

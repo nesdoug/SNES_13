@@ -1,0 +1,96 @@
+There was a bug, which doesn't show up in emulators, but
+will sometimes cause a real SNES to hang / crash 
+waiting for a value to change, but it never does.
+
+I didn't try to re-assemble the spc code, but rather
+hand assembled a patch, and typed them in a hex editor.
+
+
+;patch [offset in the spc700.bin] {offset in the snesgss.exe}
+{the spc code starts at d19d0}
+
+mainloop
+224 (26) {d19f6}
+E4 F4 F0 0F C4 F4 FD 28 0F 1C 5D DD 9F 28 0F FD 1F E9 08
+to...cmdStreamStart+3
+e4 f4 64 f4 d0 fa fd f0 0a c4 f4 3f 23 03 00 ""
+
+we put in calima's code
+and jsr call here from main loop
+
+jsr $323   3f 23 03
+
+rts 6f
+jmp 5f ????
+any jmp command done = 
+5f 37 02
+
+mainloop: calima's code from nesdev forum to fix bug
+lda cpu0	e4 f4
+cmp cpu0	64 f4
+bne mainloop d0 fa	we added 4 bytes + 3 for jsr = 7
+tay			 fd
+beq commanddone f0 0a
+sta cpu0   c4 f4
+...
+jsr $323   3f 23 03
+nop   00
+
+
+
+tay    fd
+and #0f   28 0f
+asl 1c
+tax 5d
+tya dd
+xcn 9f
+and #$0f  28 0f
+
+
+cmdStreamStart
+320 (122) {d1af2}
+323 (125) {d1af5}
+3F 19 07 E8 00 C4 25 C4 24 3F 3C 04 3F E8 03 E8 FF 
+change to...
+5f 37 02/fd 28 0f 1c 5d dd 9f 28 0f 6f
+
+
+320
+change to jmp commandDone
+5f 37 02
+then the patch 323
+(323 is jsr point)
+tay    fd
+and #0f   28 0f
+asl 1c
+tax 5d
+tya dd
+xcn 9f
+and #$0f  28 0f
+rts 6f
+
+
+cmdStreamStop
+no change
+
+
+cmdStreamSend
+353 (155) {d1b25}
+E4 20 F0 06 E4 25 64 24 D0 0A E8 00 C4
+
+change to jmp commandDone
+5f 37 02 ""
+
+
+streamStop
+no change
+
+
+This was modified in the snesgss exe file so this
+process won't have to be done again.
+File now called snesgssP.exe P for patch.
+
+This guts streaming audio, which will now not function.
+(in order to fit the patch)
+
+
