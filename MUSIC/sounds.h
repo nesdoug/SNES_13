@@ -2,7 +2,7 @@
 
 #define SOUND_EFFECTS_ALL	1
 
-#define MUSIC_ALL	2
+#define MUSIC_ALL	1
 
 //sound effect aliases
 
@@ -19,23 +19,19 @@ const char* const soundEffectsNames[SOUND_EFFECTS_ALL]={
 //music effect aliases
 
 enum {
-	MUS_BLOCKPARTY=0,
-	MUS_UNTITLED=1
+	MUS_BLOCKPARTY=0
 };
 
 //music names
 
 const char* const musicNames[MUSIC_ALL]={
-	"BLOCKPARTY",	//0
-	"UNTITLED"	//1
+	"BLOCKPARTY"	//0
 };
 
 extern const unsigned char spc700_code_1[];
 extern const unsigned char spc700_code_2[];
 extern const unsigned char music_1_data[];
-extern const unsigned char music_2_data[];
 
 const unsigned char* const musicData[MUSIC_ALL]={
-	music_1_data,
-	music_2_data
+	music_1_data
 };

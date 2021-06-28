@@ -4,7 +4,7 @@ SNES example code - echo tests
 2021 Doug Fraker  
   
 Learn to program a Super Nintendo game from scratch.  
-This program shows music code, using snesgss. Patched in echo functions.  
+This program shows music code, using snesgssQ. Patched in echo functions.  
   
 Added these functions --  
   
@@ -47,7 +47,7 @@ CAUTIONS:
  if echo vol isn't zero while changing echo_addr  
 -changing echo address does a long pause.  
  (ie. freezes the APU from doing anything for that time)  
- Don't change echo address much. Set is once at the start of  
+ Don't change echo address much. Set it once at the start of  
  a new song, or just once at the very beginning of the game.   
 -!! SNESGSS has no way to warn you if you are putting the song  
  data, or SPC code, in the same location as the echo buffer.   

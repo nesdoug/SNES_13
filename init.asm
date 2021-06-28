@@ -1,27 +1,27 @@
 ;init code for SNES
 ;much borrowed from Damian Yerrick
+;some borrowed from Oziphantom
 
 .p816
 .smart
 
 
+
 	
 .segment "CODE"
 NMI:
-	pha
-	lda $4210	; it is required to read this register
+	bit $4210	; it is required to read this register
 				; in the NMI handler
-	inc in_nmi
-	pla
+	inc in_nmi	; size of A doesn't matter
 	rti
 IRQ:
-	pha
-	lda $4211	; it is required to read this register
+	bit $4211	; it is required to read this register
 				; in the IRQ handler
-	pla
 IRQ_end:
 	rti
 
+	
+	
 
 RESET:
 	sei			; turn off IRQs
@@ -103,92 +103,175 @@ RESET:
 	
 	
 	
-	
-;clear all RAM
-	
 	AXY16
 	lda #$0000
 	tcd				; return direct page to real zero page
 
-wram_clear: 		;data bank is 7e
-	tax 			; a and x are zero
-@loop:
-	sta f:$7e0000,x
-	sta f:$7f0000,x
-	inx
-	inx
-	bne @loop
+
+;the next 17 lines adapted from code by Oziphantom
+
+Clear_WRAM:
+	A16
+	XY8
+	stz $2181 ;WRAM_ADDR_L
+	stz $2182 ;WRAM_ADDR_M
 	
+	lda #$8008 ;fixed transfer to WRAM data 2180
+	sta $4300 ; and 4301
+	lda	#.loword(DMAZero)
+	sta $4302 ; and 4303
+	ldx #^DMAZero ;bank #
+	stx $4304
+	stz $4305 ;and 4306 = size 0000 = $10000
+	ldx #1
+	stx $420B ; DMA_ENABLE, clear the 1st half of WRAM
+	stx $420B ; DMA_ENABLE, clear the 2nd half of WRAM
+	
+	A8
+	XY16
 	jsr Clear_Palette
-	jsr Clear_Oam
+	jsr DMA_Palette
+	jsr Clear_OAM
+	jsr DMA_OAM
 	jsr Clear_VRAM
 
-	A8
+;	A8
 	lda #1
 	sta $420d ;fastROM
 
 	AXY16
-	jml main ;should jump into the $80 bank, fast ROM
+	jml Main ;should jump into the $80 bank, fast ROM
 	
 ;we are still in forced blank, main code will have to turn the screen on
 
 
 
 
+
+;some code below adapted from code by Oziphantom
+
 Clear_Palette:
+;fills the buffer with zeros
 	php
 	A8
 	XY16
-	stz pal_addr ;Palette Address $2121
-	ldx #256
-@loop:
-	stz pal_data ;Palette Data $2122 
-	stz pal_data ;write twice
-	dex
-	bne @loop
+	ldx #.loword(PAL_BUFFER) 
+	stx $2181 ;WRAM_ADDR_L
+	stz $2183 ;WRAM_ADDR_H
+
+	ldx #$8008 ;fixed transfer to WRAM data 2180
+	stx $4300 ; and 4301
+	ldx	#.loword(DMAZero)
+	stx $4302 ; and 4303
+	lda #^DMAZero ;bank #
+	sta $4304
+	ldx #$200 ;512 bytes
+	stx $4305 ; and 4306
+	lda #1
+	sta $420B ; DMA_ENABLE start dma, channel 0
+	plp
+	rts
+	
+	
+DMA_Palette:
+;copies the buffer to the CGRAM
+	php
+	A8
+	XY16
+	stz $2121 ;Palette Address 
+	ldx #$2200 ;1 reg 1 write, to PAL_DATA 2122
+	stx $4300 ; and 4301
+	ldx	#.loword(PAL_BUFFER)
+	stx $4302 ; and 4303
+	lda #^PAL_BUFFER ;bank #
+	sta $4304
+	ldx #$200 ;512 bytes
+	stx $4305 ; and 4306
+	lda #1
+	sta $420B ; DMA_ENABLE start dma, channel 0
 	plp
 	rts
 
 	
-Clear_Oam:
+Clear_OAM:
+;fills the buffer with 224 for low table
+;and $00 for high table
 	php
 	A8
 	XY16
-	stz oam_addr_L
-	stz oam_addr_H
-	lda #224 	;set all y values to 224, off screen
-				;works with screen in 224 mode and sprites
-				;smaller than 64x64
-	ldx #512
-@loop:
-	sta oam_data ;$2104
-	dex
-	bne @loop
-	ldx #32
-@loop2:
-	stz oam_data ;$2104
-	dex
-	bne @loop2
+	ldx #.loword(OAM_BUFFER) 
+	stx $2181 ;WRAM_ADDR_L
+	stz $2183 ;WRAM_ADDR_H
 	
+	ldx #$8008 ;fixed transfer to WRAM data 2180
+	stx $4300
+	ldx	#.loword(SpriteEmptyVal)
+	stx $4302 ; and 4303
+	lda #^SpriteEmptyVal ;bank #
+	sta $4304
+	ldx #$200 ;size 512 bytes
+	stx $4305 ;and 4306
+	lda #1
+	sta $420B ; DMA_ENABLE start dma, channel 0
+
+	ldx	#.loword(SpriteUpperEmpty)
+	stx $4302 ; and 4303
+	lda #^SpriteUpperEmpty ;bank #
+	sta $4304
+	ldx #$0020 ;size 32 bytes
+	stx $4305 ;and 4306
+	lda #1
+	sta $420B ; DMA_ENABLE start dma, channel 0
 	plp
 	rts
+	
+	
+DMA_OAM:
+;copy from OAM BUFFER to the OAM RAM
+	php
+	A16
+	XY8
+	stz $2102 ;OAM address
+	
+	lda #$0400 ;1 reg 1 write, 2104 oam data
+	sta $4300
+	lda #.loword(OAM_BUFFER)
+	sta $4302 ; source
+	ldx #^OAM_BUFFER
+	stx $4304 ; bank
+	lda #544
+	sta $4305 ; length
+	ldx #1
+	stx $420B ; DMA_ENABLE start dma, channel 0
+	plp
+	rts		
 
 
 Clear_VRAM:
 	php
-	A8
-	lda #$80
-	sta $2115 ;VRAM increment mode +1
-	AXY16
-	stz vram_addr ;VRAM Address $2116
-	ldx #$8000
-@loop:
-	stz vram_data ;$2118
-	dex
-	bne @loop
+	A16
+	XY8
+	ldx #$80
+	stx $2115 ;VRAM increment mode +1, after the 2119 write
+	stz $2116 ;VRAM Address 
+	stz $4305 ; size $10000 bytes ($8000 words)
+	lda #$1809 ;fixed transfer (2 reg, write once) to VRAM_DATA $2118-19
+	sta $4300 ; and 4301
+	lda	#.loword(DMAZero)
+	sta $4302 ; and 4303
+	ldx #^DMAZero ;bank #
+	stx $4304
+	ldx #1
+	stx $420B ; DMA_ENABLE start dma, channel 0
 	plp
 	rts
 
 
 
+SpriteUpperEmpty: ;my sprite code assumes hi table of zero
+DMAZero:
+.word $0000
+
+SpriteEmptyVal:
+.byte 224
 

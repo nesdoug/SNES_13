@@ -1,11 +1,11 @@
 ;from easySNES
 ;Doug Fraker 2020
 
-oam_buffer = OAM_BUFFER
+
 
 .segment "CODE"
 
-oam_spr:
+OAM_Spr:
 .a8
 .i16
 ; to put one sprite on screen
@@ -31,13 +31,13 @@ oam_spr:
 	lsr a ; 0-31
 	tax
 	lda spr_x ;x low byte
-	sta a:oam_buffer, y
+	sta a:OAM_BUFFER, y
 	lda spr_y ;y
-	sta a:oam_buffer+1, y
+	sta a:OAM_BUFFER+1, y
 	lda spr_c ;tile
-	sta a:oam_buffer+2, y
+	sta a:OAM_BUFFER+2, y
 	lda spr_a ;attribute
-	sta a:oam_buffer+3, y
+	sta a:OAM_BUFFER+3, y
 	
 ; handle the high table
 ; two bits, shift them in
@@ -61,15 +61,15 @@ oam_spr:
 	
 @zero:
 	lda spr_h
-	sta a:oam_buffer+$200, x
+	sta a:OAM_BUFFER+$200, x
 	bra @end
 	
 @one:
 	lda spr_h
 	asl a
 	asl a
-	ora a:oam_buffer+$200, x
-	sta a:oam_buffer+$200, x
+	ora a:OAM_BUFFER+$200, x
+	sta a:OAM_BUFFER+$200, x
 	bra @end
 	
 @two:
@@ -78,8 +78,8 @@ oam_spr:
 	asl a
 	asl a
 	asl a
-	ora a:oam_buffer+$200, x
-	sta a:oam_buffer+$200, x
+	ora a:OAM_BUFFER+$200, x
+	sta a:OAM_BUFFER+$200, x
 	bra @end
 
 @three:
@@ -87,10 +87,10 @@ oam_spr:
 	lsr a ; 0000 0001 c
 	ror a ; 1000 0000 c
 	ror a ; 1100 0000 0
-	ora a:oam_buffer+$200, x
-	sta a:oam_buffer+$200, x	
+	ora a:OAM_BUFFER+$200, x
+	sta a:OAM_BUFFER+$200, x	
 	
-@end:	
+@end:
 	lda sprid
 	inc a
 	and #$7f ; keep it 0-127
@@ -99,9 +99,10 @@ oam_spr:
 	rts
 
 
-oam_meta_spr:	
+OAM_Meta_Spr:	
 .a16
 .i16
+;update 6/2021
 ; to put multiple sprites on screen
 ; copy all the sprite values to these 8 bit variables
 ; spr_x - x 9 bit
@@ -130,11 +131,15 @@ oam_meta_spr:
 	sta spr_x2
 	
 	sep #$20 ;a8
-	lda sprid ;align sprid to multiple of 4
-	clc
-	adc #3
-	and #$7c
-	sta sprid
+	lda sprid
+	and #3
+	sta temp3
+	lda #3
+	sec
+	sbc temp3
+	sta temp3 ;loop counter
+	
+	lda sprid
 	lsr a
 	lsr a ; 0-31
 	sta temp4 ;high table index
@@ -145,9 +150,6 @@ oam_meta_spr:
 	asl a
 	asl a ; 0-511
 	tax ;x = low table index
-
-	lda #3
-	sta temp3 ;loop counter
 	
 @loop:
 	sep #$20 ; a8
@@ -166,20 +168,19 @@ oam_meta_spr:
 	adc spr_x2
 ;the high byte holds the X 9th bit
 	sep #$20 ;a8
-	sta a:oam_buffer, x
+	sta a:OAM_BUFFER, x
 ;keep that high byte 9th x
 	iny
 	lda [temp1], y ;y byte
 	clc
-	adc spr_y
-;todo, maybe skip wraparound ?	
-	sta a:oam_buffer+1, x
+	adc spr_y	
+	sta a:OAM_BUFFER+1, x
 	iny
 	lda [temp1], y ;tile
-	sta a:oam_buffer+2, x
+	sta a:OAM_BUFFER+2, x
 	iny
 	lda [temp1], y ;attributes
-	sta a:oam_buffer+3, x
+	sta a:OAM_BUFFER+3, x
 	iny
 	lda [temp1], y ;size
 	iny
@@ -201,7 +202,6 @@ oam_meta_spr:
 	dec temp3 ;loop counter
 	bpl @loop
 ; we have 4, push them to the high table now
-
 	phx ;save for later
 	ldx temp4
 	lda temp5
@@ -214,15 +214,23 @@ oam_meta_spr:
 	asl a
 	asl a
 	ora temp5+3
-	sta a:oam_buffer+$200, x
+	ora a:OAM_BUFFER+$200, x
+	sta a:OAM_BUFFER+$200, x
 	inc temp4
 
-;fix bug, clear them again	
 	ldx #$0000
 	stx temp5
 	stx temp6
 	
 	plx
+;overflow check	
+	cpx #$0200
+	bcc @ok
+	ldx #$0000 ;low table index
+	stz sprid
+	stz temp4 ;high table index
+@ok:
+	
 	lda #3
 	sta temp3 ;loop counter
 	bra @loop
@@ -244,58 +252,21 @@ oam_meta_spr:
 	asl a
 	asl a
 	ora temp5+3
-	sta a:oam_buffer+$200, x
+	ora a:OAM_BUFFER+$200, x
+	sta a:OAM_BUFFER+$200, x
 	
 @exit:	
 	plp
 	rts
-	
-	
-oam_clear:
-.a8
-.i16
-; do at the start of each frame	
-; clears the sprite buffer
-; put all y at 224
-	php
-	sep #$20
-	rep #$10
-	stz sprid
-	lda #224
-	ldy #1
-@loop:
-; more efficient than a one lined sta
-	sta a:oam_buffer, y
-	sta a:oam_buffer+$40, y
-	sta a:oam_buffer+$80, y
-	sta a:oam_buffer+$c0, y
-	sta a:oam_buffer+$100, y
-	sta a:oam_buffer+$140, y
-	sta a:oam_buffer+$180, y
-	sta a:oam_buffer+$1c0, y
-	iny
-	iny
-	iny
-	iny
-	cpy #$40 ; 41, but whatever
-	bcc @loop
-	
-; clear the high table too
-; then the oam_spr code can skip the 5th byte, if zero
 
-	ldx #30
-	rep #$20
-@loop2:
-	stz a:oam_buffer+$200, x
-	dex
-	dex
-	bpl @loop2
-	plp
-	rts	
+	
+	
+;Clear_OAM:
+;see init.asm
 	
 	
 	
-map_offset: 
+Map_Offset: 
 .a16
 .i8
 ; A should be 16, XY size doesn't matter
@@ -343,10 +314,10 @@ offset_common:
 	
 	
 	
-check_collision:
+Check_Collision:
 .a8
 .i16
-;copy each object's value to these variables and jsr here.
+;copy each object's value to these varibles and jsr here.
 ;obj1x: .res 1
 ;obj1w: .res 1
 ;obj1y: .res 1
