@@ -1,6 +1,8 @@
 multiple patches in the SPC code
 to add echo functions
 
+v2 - bug fix, echo buffer size zero would crash
+
 
 -cut jsr to updateBRR 
 $39 = 00 00 00
@@ -68,6 +70,9 @@ echo_addr: 149=347
 	asl a ;4				1c
 	asl a ;8				1c
 	tax ;high byte count	5d
+	bne forward ;           d0 01
+	inx ;we can't have size zero   3d
+forward: ; e8c0d5
 	lda #0					e8 00
 	sta D_PTR_L				c4 0c
 	tay ;low byte count		fd
@@ -91,9 +96,7 @@ loop2:
 	dey bne loop2			fe fa
 	jmp cmdStereo+4			5f 52 02
 
-	nop 00 ; 3 bytes blank
-	nop 00
-	nop 00
+
 	
 	
 	
@@ -165,3 +168,4 @@ streamStop, 3d8=1da = e8 00 c4 20 e8... don't touch it.
 Further Notes
 exe patch d1a0c-d20d6
 
+101600 size

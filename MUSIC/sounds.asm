@@ -2,7 +2,7 @@
 
 .define SFX_DING	0
 
-.define MUS_BLOCKPARTY	0
+.define MUS_UNTITLED	0
 
 .section ".roDataSoundCode1" superfree
 spc700_code_1:	.incbin "spc700.bin" skip 0 read 32768

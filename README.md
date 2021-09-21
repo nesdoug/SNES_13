@@ -11,7 +11,7 @@ Added these functions --
 echo_vol	a = vol, 00-$7f, x = which channels (bit field)  
   
 echo_addr	a = echo start address (x $100)   
-			x = buffer size, 00-$0f, (x $800)  
+			x = buffer size, 01-$0f, (x $800)  
 			(use values 1-5 for buffer size)  
   
 echo_fb_fir  a = 0-3 = FIR table set, x = echo feedback 0-$7f  
@@ -56,6 +56,8 @@ CAUTIONS:
  address of the echo buffer.  
 -don't make the buffer size larger than the available space  
 -also, avoid the SPC boot ROM at $FFC0-FFFF  
+
+*bug fix Qv2 - echo buffer size zero was crashing.
    
 NOTES:  
 -the echo settings used in the demo are probably much more  

@@ -19,13 +19,13 @@ const char* const soundEffectsNames[SOUND_EFFECTS_ALL]={
 //music effect aliases
 
 enum {
-	MUS_BLOCKPARTY=0
+	MUS_UNTITLED=0
 };
 
 //music names
 
 const char* const musicNames[MUSIC_ALL]={
-	"BLOCKPARTY"	//0
+	"UNTITLED"	//0
 };
 
 extern const unsigned char spc700_code_1[];

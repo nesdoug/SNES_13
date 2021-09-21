@@ -142,21 +142,26 @@ Main:
 	jsl Echo_Vol
 	
 ;echo vol MUST be off when changing the echo buffer address	
-	lda #$ef ;echo buffer start address at $ef00
-	ldx #2 ;size x $800 = $1000 byte buffer
+	lda #$d7 ;echo buffer start address at $d700
+	ldx #5 ;size x $800 = $2800 byte buffer
 	jsl Echo_Addr
 ;this also takes a while to do	
 ;echo buffer will use $ef00-feff of the SPC RAM with these settings
 	
 ;turn on the echo volume
-	lda #$40 ;echo volume (0-7f)
+	lda #$20 ;echo volume (0-7f)
 	ldx #$3f ;channels 1-6
 	jsl Echo_Vol
 	
 ;and set the feedback and FIR filter
-	lda #0 ;FIR set 0 = simple echo
-	ldx #$40 ;echo feedback volume (0-7f)
+	lda #1 ;FIR set
+	ldx #$50 ;echo feedback volume (0-7f)
 	jsl Echo_Fb_Fir
+	
+	
+;	lda #$ff
+;	ldx #$10
+;	jsl SPC_Global_Volume
 	
 	
 ;copy the song data to the Audio RAM, and start it.	
@@ -166,6 +171,8 @@ Main:
 	lda #.loword(song1)
 	ldx #^song1
 	jsl SPC_Play_Song
+	
+	
 	
 	
 	A8
@@ -424,9 +431,9 @@ Past_Move:
 ;	y= sfx channel, needs to be > than max song channel
 ;pan center
 
-;	lda #$00 ;echo volume off
-;	ldx #$00 ;channels off
-;	jsl Echo_Vol
+	lda #$00 ;echo volume off
+	ldx #$00 ;channels off
+	jsl Echo_Vol
 	
 Past_Yellow:
 	XY16
@@ -634,5 +641,5 @@ music_code_end:
 ;put every byte, from 32768 on, here
 song1:
 .incbin "MUSIC/music_1.bin"
-song2:
-.incbin "MUSIC/music_2.bin"
+;song2:
+;.incbin "MUSIC/music_2.bin"
