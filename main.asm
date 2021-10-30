@@ -10,6 +10,7 @@
 .include "macros.asm"
 .include "init.asm"
 .include "library.asm"
+.include "Background/metatiles.asm"
 .include "MUSIC/music.asm"
 
 
@@ -49,12 +50,66 @@ Main:
 	
 ; DMA from Map1 to VRAM	$6000 
 	
-	DMA_VRAM  $700, Map1, $6000
+;	DMA_VRAM  $700, Map1, $6000
 
+; programatically draw the map based on the HIT_MAP
+; 16x14 = 224 bytes
+	A8
+	lda #V_INC_1
+	sta VMAIN ;make sure vram transfer is +1
+	AXY16
+	lda #$6000
+	sta temp1
+	
+	ldy #$0000
+;x = index Metatiles
+;y = index HIT_MAP
+@draw_map_loop:
+	lda temp1 ;vram address
+	sta VMADDL
 
+	lda HIT_MAP, y
+	and #$00ff ;only need low byte
+	asl a ;x2
+	asl a ;x4
+	asl a ;x8
+	tax
+	lda Metatiles, x
+	sta VMDATAL
+	lda Metatiles+2, x
+	sta VMDATAL
+	
+	lda temp1 ;vram address
+	clc
+	adc #$0020
+	sta VMADDL
+	
+	lda Metatiles+4, x
+	sta VMDATAL
+	lda Metatiles+6, x
+	sta VMDATAL
+	
+	lda temp1
+	clc
+	adc #$0002
+	sta temp1
+	and #$0020 ;end of the row ?
+	beq @1
+;yes, jump down another row	
+	lda temp1
+	clc
+	adc #$0020
+	sta temp1
+@1:	
+	
+	iny
+	cpy #224
+	bcc @draw_map_loop
 
 	
 	
+	
+	A8
 
 	lda #1 ; mode 1, tilesize 8x8 all
 	sta BGMODE ; $2105
@@ -624,8 +679,8 @@ BG_Palette:
 Spr_Palette:
 .incbin "Sprites/Cube.pal"
 
-Map1:
-.incbin "Background/Blocks.map"
+;Map1:
+;.incbin "Background/Blocks.map"
 
 
 .segment "RODATA6"
