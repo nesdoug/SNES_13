@@ -1,14 +1,14 @@
-;music code for snesgssQ
+;music code for snesgss
 ;written by Shiru
-;modified to work with ca65 by Doug Fraker 2020
+;modified to work with ca65 by Doug Fraker 2020-2021
 ;streaming audio has been removed and
 ;the spc code has been patched to fix a bug - and add echo
 ;now called snesgssQ.exe -
 
-;version 4
-;update 6/2021
-;added comments
-;slight change in code
+;version 5
+;update 11/2021
+;added SPC_All_Echo to set all echo parameters
+;using a single table of values
 
 
 LOROM = 1
@@ -23,7 +23,7 @@ LOROM = 1
 .global Music_Pause, Sound_Stop_All, SFX_Play, SFX_Play_Center
 .global SFX_Play_Left, SFX_Play_Right
 
-.global Echo_Vol, Echo_Addr, Echo_Fb_Fir
+.global Echo_Vol, Echo_Addr, Echo_Fb_Fir, SPC_All_Echo
 
 ;notes
 ;cmdStereo, param 8 bit, 0 or 1
@@ -93,6 +93,7 @@ gss_command:		.res 2
 save_stack:			.res 2
 spc_pointer:		.res 4
 spc_music_load_adr:	.res 2
+echo_pointer:		.res 4
 
 
 
@@ -648,13 +649,13 @@ SPC_Stream_Update:
 ;adding some echo functions - doug fraker 2021
 
 ;AXY8 or AXY16
-;lda #echo volume 0-$7f (0 = off)
+;lda #echo volume 0-$7f or ($80-ff negative), (0 = off) 
 ;ldx #which channels on? (bit field, each bit = a channel)
 ;jsl Echo_Vol
 Echo_Vol:
 	php
 	AXY16
-	and #$007f ;vol
+	and #$00ff ;***** changed v5
 	sta spc_temp
 	txa
 	and #$00ff ;which channels
@@ -708,7 +709,7 @@ Echo_Addr:
 ;  1 = multi tap echo
 ;  2 = low pass echo
 ;  3 = high pass echo
-;ldx #echo feedback volume (0-$7f)
+;ldx #echo feedback volume (0-$7f) or ($80-ff negative)
 ;jsl Echo_Fb_Fir	
 Echo_Fb_Fir:
 	php
@@ -716,7 +717,7 @@ Echo_Fb_Fir:
 	and #$0003 ;fir
 	sta spc_temp
 	txa
-	and #$007f
+	and #$00ff ;***** changed v5
 	xba
 	ora spc_temp
 	sta gss_param
@@ -735,4 +736,98 @@ SPC_Common_End:
 	rtl
 	
 	
+;sets all the echo functions AND global volume
+;output from Echo4GSS is a 14 byte array
+;
+;1 = which channels have echo enabled
+;2 = echo start address
+;3 = echo size / delay
+;4 = echo volume
+;5 = echo feedback
+;6-13 = FIR filter values
+;14 = global (main) volume
+
+;AXY16
+;lda # address of echo data
+;ldx # bank of echo data
+;jsl SPC_All_Echo
+
+SPC_All_Echo:
+	php
+	AXY16
+	sta echo_pointer ;pointer to the data
+	stx echo_pointer+2 ;bank
+	
+	jsl Sound_Stop_All
+	
+;first send the FIR, overwrite FIR set #0
+;	AXY16
+	lda #SCMD_LOAD
+	sta gss_command
+	stz gss_param
+	jsl SPC_Command_ASM
+	tsx
+	stx save_stack
+;	lda #^TEST_FIR ;source bank
+	lda echo_pointer+2
+	pha
+;	lda #.loword(TEST_FIR) ;source address
+	lda echo_pointer
+	clc
+	adc #5
+	pha
+	lda #8 ;size
+	pha
+	lda #$03aa ;SPC address to patch (= the FIR table)
+	pha
+	jsl SPC_Load_Data
+	ldx save_stack
+	txs
+
+	AXY8
+	ldy #4
+	lda [echo_pointer], y ;echo feedback
+	tax
+	lda #0 ;FIR Set 0
+	jsl Echo_Fb_Fir	
+	
+	lda #0 ;echo volume 0 before we change
+	tax    ;the echo start address
+	jsl Echo_Vol
+
+	ldy #2 
+	lda [echo_pointer], y ;size / delay
+	and #$0f ;should be 0-f
+	tax
+	dey ;y = 1
+	lda [echo_pointer], y ;start address
+	jsl Echo_Addr
+	
+	ldy #13
+	lda [echo_pointer], y ;global volume
+	tax ;right away
+	jsl SPC_Global_Volume
+	
+	lda [echo_pointer] ;which echo channels active
+	tax 
+	ldy #3
+	lda [echo_pointer], y ;echo volume
+	jsl Echo_Vol
+	
+	plp
+	rtl
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	

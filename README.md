@@ -75,3 +75,56 @@ https://sneslab.net/wiki/FIR_Filter
   
 nesdoug.com  
   
+  
+  
+  
+Update Nov 4, 2021
+
+An easier way (see mainB.asm and SNES_13B.sfc)
+
+I made an app that can make a binary file holding all
+the Echo Settings. And I added a function to set
+all the Echo Settings, called SPC_All_Echo. It also 
+sets the Global Volume (Main Volume).
+
+The app is called Echo4GSS.exe and is in the
+music folder. It can do other things too
+(see that project in my github). Use this app
+to "Save Settings", creates a 14 byte bin file.
+That file holds all the Echo parameters.
+
+You just need to pass a pointer to that file
+to the SPC_All_Echo function to change all
+the Echo Settings (and also Main Volume).
+
+Note: it overwrites the first FIR table
+Note2: it will take a while. Probably should
+       only attempt it between levels.
+
+Adding Echo the "easy" way...
+Step by step:
+1. Make a song in SNESGSS
+2. Save it/ export it, and also (for testing)
+   save a song as an SPC
+3. Open the SPC in Echo4GSS
+4. Change the Echo Settings
+(it will tell you if the settings are impossible)
+5. Save the SPC, test it in MESEN-S
+6. If it sounds bad, goto 4
+7. Save the settings as .bin
+8. .incbin that settings file to your asm
+9. Before you play a new song, first send a
+   pointer to the Echo Settings to SPC_All_Echo
+10. Now play a song.
+
+You could have a unique Echo Setting for each
+song, or you could have 1 or 2 different settings,
+or you can always turn off Echo by simply
+setting echo volume to zero.
+
+lda #0 ;echo volume 0
+tax
+jsl Echo_Vol
+
+
+
