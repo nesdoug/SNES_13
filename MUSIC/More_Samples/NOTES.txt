@@ -1,6 +1,23 @@
-Nearly all exported from Deflemask or Famitracker.
-Drums are from Royalty Free sources.
+I (Doug Fraker) made all these samples
+Consider them public domain
+(free to use)
 
-Most things are tuned to B+21 cents
+for SNESGSS
+.gsi is the instrument file 
+(instruments tab/load)
+SNESGSS can export the original WAV from it.
+(intruments menu/extract source wav)
 
-MD = Mega Drive / Sega Genesis
+All samples are tuned to B +21 cents, usually
+having a loop of 32,64,128,or 256 samples per loop
+
+except the drums have not been retuned
+nor has the "WhistleG" sample
+
+.brr
+brr versions have been included, which can be
+used for SMW, AddmusicK.
+These brr files have a 2 byte loop point at
+the beginning of the file. You may need to
+remove those 2 bytes for purposes other than SMW.
+
